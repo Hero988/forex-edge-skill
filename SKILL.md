@@ -32,7 +32,7 @@ if has_config:
 "
 ```
 
-- If `TOOLKIT_PRESENT=False`: Clone the companion repo — `git clone https://github.com/<owner>/forex-edge-toolkit .` (ask user for repo URL if not known)
+- If `TOOLKIT_PRESENT=False`: Clone the companion repo — `git clone https://github.com/Hero988/Forex-Trading-Skill.git .`
 - If `CONFIG_EXISTS=False`: Run interactive setup (Section 2)
 - If both exist: Proceed to mode detection (Section 3)
 
