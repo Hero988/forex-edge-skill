@@ -8,12 +8,12 @@ AI agent skill for automated forex strategy discovery and MQL5 Expert Advisor ge
 
 **Git Bash / macOS / Linux:**
 ```bash
-mkdir -p ~/.claude/skills/forex-edge && curl -sL https://raw.githubusercontent.com/Hero988/forex-edge-skill/main/forex-edge/SKILL.md -o ~/.claude/skills/forex-edge/SKILL.md
+mkdir -p ~/.claude/skills/forex-edge && curl -sL https://raw.githubusercontent.com/Hero988/forex-edge-skill/master/forex-edge/SKILL.md -o ~/.claude/skills/forex-edge/SKILL.md
 ```
 
 **PowerShell (Windows):**
 ```powershell
-New-Item -ItemType Directory -Force -Path "$HOME/.claude/skills/forex-edge" | Out-Null; Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Hero988/forex-edge-skill/main/forex-edge/SKILL.md" -OutFile "$HOME/.claude/skills/forex-edge/SKILL.md"
+New-Item -ItemType Directory -Force -Path "$HOME/.claude/skills/forex-edge" | Out-Null; Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Hero988/forex-edge-skill/master/forex-edge/SKILL.md" -OutFile "$HOME/.claude/skills/forex-edge/SKILL.md"
 ```
 
 The skill auto-loads in every Claude Code session. Verify with: "What skills are available?"
