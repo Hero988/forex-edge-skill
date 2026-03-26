@@ -117,9 +117,23 @@ Ask the user for ALL of the following. Nothing is pre-assumed.
 ### Smart Next Action Logic:
 - No config → run setup
 - No backtest results → suggest backtest
-- Backtest exists but >14 days old → suggest re-backtest
+- Backtest is stale (see staleness table below) → suggest re-backtest
 - Backtest exists, no EAs generated → suggest generate-ea
 - EAs exist → show status, suggest reoptimize if stale
+
+### Backtest Staleness Rules (re-optimization needed):
+
+| Timeframe | Re-optimization Interval | Strategy Shelf Life |
+|---|---|---|
+| 1m | Weekly to bi-weekly | Days to weeks |
+| 5m | Bi-weekly to monthly | 2-4 weeks |
+| 15m | Monthly | 1-3 months |
+| 30m | Monthly to quarterly | 2-4 months |
+| 1h | Quarterly | 3-6 months |
+| 4h | Quarterly to semi-annually | 6-12 months |
+| 1d | Semi-annually | 6-12 months |
+
+Check `last_backtest_date` in config.json against these intervals.
 
 ---
 
@@ -139,14 +153,35 @@ If user specified specific pairs, add `--symbols EURUSD GBPUSD ...`
 python scripts/run_full_backtest.py --config config.json --data-dir backtests/data --results-dir backtests/results --reports-dir backtests/reports
 ```
 
-The script:
-- Reads all preferences from config.json
-- Tests all strategy × parameter combinations
-- Simulates with the user's prop firm rules
-- Ranks by composite score: `R²×50 + PF×20 + WR×0.5 + Sharpe×5 + MC×0.3 - MaxDD×10`
-- Applies quality filters
-- Selects top N unique pairs
-- Saves results JSON + HTML equity curve report
+The script uses **walk-forward analysis** (the gold standard for strategy validation):
+
+1. For each pair/timeframe, splits data into rolling in-sample (IS) and out-of-sample (OOS) windows
+2. Optimizes strategy parameters on IS data
+3. Tests those parameters (unchanged) on subsequent OOS data
+4. Rolls the window forward and repeats (minimum 5 windows)
+5. Only accepts strategies where:
+   - **WFE > 50%** (walk-forward efficiency: OOS return / IS return)
+   - **>= 70% of OOS windows are profitable**
+   - **OOS max drawdown <= 150% of IS max drawdown**
+   - Combined OOS equity curve has positive slope
+6. Applies user's quality filters on top (min PF, min WR, max DD, min R²)
+7. Ranks by composite score on OOS data (not in-sample!)
+8. Selects top N unique pairs
+9. Saves results JSON + HTML report with OOS equity curves
+
+**Why walk-forward matters**: A single backtest can overfit to specific market conditions. Walk-forward proves the strategy works on data it has never seen, across multiple time periods. If the OOS equity curve slope matches the IS slope, the strategy is robust.
+
+IS/OOS window sizes per timeframe:
+
+| TF | IS Window | OOS Window | Min Windows |
+|---|---|---|---|
+| 1m | ~1 month | ~1 week | 6 |
+| 5m | ~2 months | ~2 weeks | 6 |
+| 15m | ~3 months | ~1 month | 5 |
+| 30m | ~3 months | ~1 month | 5 |
+| 1h | ~6 months | ~2 months | 5 |
+| 4h | ~12 months | ~3 months | 5 |
+| 1d | ~2 years | ~6 months | 5 |
 
 ### Step 3: Show Results
 
