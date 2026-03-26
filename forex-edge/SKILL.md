@@ -60,9 +60,22 @@ Ask the user for ALL of the following. Nothing is pre-assumed.
 **Step 4: Backtest Preferences**
 - **Pairs**: "All available on your MT5" / specific list / "majors only"
   - If "all": will auto-discover via `python scripts/mt5_connect.py --config config.json --pairs`
-- **Timeframes**: which to test (1m, 5m, 15m, 1h, 4h — can pick multiple)
+- **Timeframes**: which to test (1m, 5m, 15m, 30m, 1h, 4h, 1d — can pick one or multiple)
 - **Strategies**: all (ema_cross, rsi_reversal, macd_cross) or specific ones
-- **Data period**: how far back (suggest 1 year / 365 days)
+- **Data period**: Each timeframe has an optimal default based on statistical significance (enough trades) while keeping data recent (relevant market conditions). Show the user the defaults and let them adjust:
+
+  | Timeframe | Default Period | Why |
+  |---|---|---|
+  | 1m | 60 days (~2 months) | Microstructure changes fast; 60 days gives 500+ signals on active pairs |
+  | 5m | 120 days (~4 months) | Balances trade count with recency of spread/volatility patterns |
+  | 15m | 240 days (~8 months) | Sweet spot for intraday — covers seasonal patterns without going stale |
+  | 30m | 425 days (~14 months) | Needs more calendar time to accumulate enough trades |
+  | 1h | 912 days (~2.5 years) | Captures multiple volatility cycles and rate decision periods |
+  | 4h | 1460 days (~4 years) | Needs bull/bear/range regimes represented |
+  | 1d | 2555 days (~7 years) | Must span multiple macro cycles for daily strategies |
+
+  Tell the user: "The default for {timeframe} is {period} days of data. This gives enough trades for statistical significance while keeping the data recent. Want to use the default or change it?"
+
 - **Quality thresholds** (suggest defaults, user can adjust):
   - Min profit factor: 1.15
   - Min win rate: 38%
