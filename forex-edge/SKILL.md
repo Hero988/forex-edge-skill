@@ -149,10 +149,40 @@ Before running, ask the user how they want to run the backtest:
 | Option | What Happens |
 |---|---|
 | **Single timeframe** (e.g., "just 1m" or "just 1h") | Runs one scan, produces results for that timeframe only |
-| **Multiple timeframes sequentially** (e.g., "1m and 15m") | Runs each timeframe as a separate scan, then combines all results |
-| **All configured timeframes** | Runs each timeframe from config.json sequentially, then combines |
+| **Multiple timeframes sequentially** (e.g., "1m and 15m") | Runs each timeframe one at a time, then combines all results |
+| **Multiple timeframes in parallel** (e.g., "all at once") | Downloads all data first, then launches all scans simultaneously as background processes |
+| **All configured timeframes** | Runs each timeframe from config.json, then combines |
 
 Each timeframe scan produces its own results file tagged with the timeframe (e.g., `winners-2026-03-27-1m.json`, `winners-2026-03-27-15m.json`). After all scans complete, a combined portfolio analysis merges everything.
+
+### Parallel Execution (multiple timeframes at once)
+
+Since each timeframe scan writes to its own files, they can run in parallel as separate processes. Before recommending parallel execution, **check the user's PC specs**:
+
+```bash
+python -c "
+import os, psutil
+cores = os.cpu_count()
+ram_gb = psutil.virtual_memory().total / (1024**3)
+ram_free_gb = psutil.virtual_memory().available / (1024**3)
+cpu_pct = psutil.cpu_percent(interval=1)
+print(f'CPU: {cores} threads | RAM: {ram_gb:.0f} GB total, {ram_free_gb:.0f} GB free | CPU load: {cpu_pct}%')
+"
+```
+
+**Each backtest scan uses ~1 CPU core at 100% and ~70 MB RAM.** Recommendation:
+
+| PC Specs | Recommendation |
+|---|---|
+| 4 cores, <8 GB RAM | Run 1-2 at a time (sequential) |
+| 8 cores, 16 GB RAM | Run up to 4 in parallel |
+| 16+ cores, 32+ GB RAM | Run all timeframes in parallel |
+
+**How parallel works:**
+1. Download all historical data first (sequential — MT5 handles one connection)
+2. Launch all backtest scans simultaneously as background processes
+3. Each reads its own data files and writes its own tagged results
+4. Run `combined_analysis.py --all` after all finish to merge everything
 
 ### Step 1: Pull Historical Data
 
