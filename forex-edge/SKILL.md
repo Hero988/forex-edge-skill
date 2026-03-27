@@ -105,8 +105,11 @@ Ask the user for ALL of the following. Nothing is pre-assumed.
 | User Message | Action |
 |---|---|
 | No specific request | Smart Next Action (check state, suggest what to do) |
-| "backtest", "scan", "find strategies" | **Backtest Workflow** |
+| "backtest", "scan", "find strategies" | **Backtest Workflow** (ask which timeframes) |
+| "backtest 1m", "backtest 15m" | Backtest specific timeframe |
+| "backtest 1m 15m 1h" | Backtest multiple timeframes sequentially, then combine |
 | "backtest --pairs EURUSD GBPUSD --tf 15m" | Backtest with overrides |
+| "combine", "combine all", "merge timeframes" | Run combined portfolio analysis across all timeframe scans |
 | "generate ea", "create ea", "make ea" | **EA Generation** |
 | "generate ea EURUSD" | Generate EA for specific pair |
 | "compile" | **Compile EAs** |
@@ -139,19 +142,62 @@ Check `last_backtest_date` in config.json against these intervals.
 
 ## 4. Backtest Workflow
 
+Before running, ask the user how they want to run the backtest:
+
+**"How would you like to run the backtest?"**
+
+| Option | What Happens |
+|---|---|
+| **Single timeframe** (e.g., "just 1m" or "just 1h") | Runs one scan, produces results for that timeframe only |
+| **Multiple timeframes sequentially** (e.g., "1m and 15m") | Runs each timeframe as a separate scan, then combines all results |
+| **All configured timeframes** | Runs each timeframe from config.json sequentially, then combines |
+
+Each timeframe scan produces its own results file tagged with the timeframe (e.g., `winners-2026-03-27-1m.json`, `winners-2026-03-27-15m.json`). After all scans complete, a combined portfolio analysis merges everything.
+
 ### Step 1: Pull Historical Data
 
-```bash
-python scripts/historical_data.py --config config.json --timeframes {TIMEFRAMES from config} --days {DAYS from config} --output-dir backtests/data
-```
-
-If user specified specific pairs, add `--symbols EURUSD GBPUSD ...`
-
-### Step 2: Run Full Optimization Scan
+For each timeframe, pull the optimal amount of data:
 
 ```bash
-python scripts/run_full_backtest.py --config config.json --data-dir backtests/data --results-dir backtests/results --reports-dir backtests/reports
+python scripts/historical_data.py --config config.json --timeframes {TIMEFRAME} --output-dir backtests/data
 ```
+
+The script auto-selects the optimal data period per timeframe (e.g., 60 days for 1m, 240 days for 15m, 912 days for 1h). If user specified specific pairs, add `--symbols EURUSD GBPUSD ...`
+
+### Step 2: Run Optimization Scan (per timeframe)
+
+```bash
+python scripts/run_full_backtest.py --config config.json --timeframes 1m --data-dir backtests/data --results-dir backtests/results --reports-dir backtests/reports
+```
+
+Output files are tagged with the timeframe:
+- `backtests/results/full-scan-{date}-1m.json`
+- `backtests/results/winners-{date}-1m.json`
+- `backtests/reports/equity-curves-{date}-1m.html`
+
+After the scan, it automatically runs a combined portfolio analysis for that timeframe.
+
+If running multiple timeframes, repeat for each:
+```bash
+python scripts/run_full_backtest.py --config config.json --timeframes 15m ...
+python scripts/run_full_backtest.py --config config.json --timeframes 1h ...
+```
+
+### Step 3: Combined Portfolio Analysis (all timeframes)
+
+After all timeframe scans are done, merge everything:
+
+```bash
+python scripts/combined_analysis.py --all
+```
+
+This:
+- Loads all `full-scan-*-*.json` files across timeframes
+- Checks MT5 margin mode (hedging allows multiple strategies per pair; netting restricts to best-per-pair)
+- Verifies no hedging violations (same-direction signals on overlapping trades)
+- Combines equity curves into a single portfolio
+- Checks prop firm compliance (daily DD, trailing DD, float cap, consistency rule)
+- Generates `backtests/reports/detailed-report-{date}-all.html` with strategies from every timeframe — **only if all compliance checks pass**
 
 The script uses **walk-forward analysis** (the gold standard for strategy validation):
 
@@ -166,10 +212,7 @@ The script uses **walk-forward analysis** (the gold standard for strategy valida
    - Combined OOS equity curve has positive slope
 6. Applies user's quality filters on top (min PF, min WR, max DD, min R²)
 7. Ranks by composite score on OOS data (not in-sample!)
-8. Selects top N unique pairs
-9. Saves results JSON + HTML report with OOS equity curves
-
-**Why walk-forward matters**: A single backtest can overfit to specific market conditions. Walk-forward proves the strategy works on data it has never seen, across multiple time periods. If the OOS equity curve slope matches the IS slope, the strategy is robust.
+8. Saves results incrementally after each pair (no lost data if killed mid-run)
 
 IS/OOS window sizes per timeframe:
 
@@ -183,15 +226,15 @@ IS/OOS window sizes per timeframe:
 | 4h | ~12 months | ~3 months | 5 |
 | 1d | ~2 years | ~6 months | 5 |
 
-### Step 3: Show Results
+### Step 4: Show Results
 
-Display the top winners with metrics table. Open the HTML report in the browser if possible.
+Display the top winners with metrics table. Open the HTML report in the browser if possible. Show both per-timeframe and combined results.
 
-### Step 4: Offer EA Generation
+### Step 5: Offer EA Generation
 
 Ask: "Would you like to generate Expert Advisors for these winners?"
 
-### Step 5: Update Config
+### Step 6: Update Config
 
 Update `last_backtest_date` in config.json.
 
@@ -238,7 +281,9 @@ Show:
 | `mt5_connect.py` | Connect to MT5, discover pairs | `python scripts/mt5_connect.py --config config.json --test` |
 | `historical_data.py` | Pull OHLC data from MT5 | `python scripts/historical_data.py --config config.json --timeframes 1h 15m` |
 | `backtest_engine.py` | Core simulation engine | (imported by run_full_backtest.py) |
-| `run_full_backtest.py` | Full optimization scan | `python scripts/run_full_backtest.py --config config.json` |
+| `run_full_backtest.py` | Full optimization scan | `python scripts/run_full_backtest.py --config config.json --timeframes 1m` |
+| `combined_analysis.py` | Combined portfolio analysis | `python scripts/combined_analysis.py --all` or `--tf-label 1m` |
+| `generate_detailed_html.py` | Detailed WFA HTML report | `python scripts/generate_detailed_html.py --all` or `--scan-path <path>` |
 | `generate_ea.py` | Generate .mq5 EA files | `python scripts/generate_ea.py --results <path> --config config.json` |
 | `compile_ea.py` | Compile and install EAs | `python scripts/compile_ea.py --input output --install` |
 
