@@ -1,11 +1,11 @@
 ---
 name: forex-edge
-description: Forex strategy researcher and MQL5 EA generator. Backtests thousands of strategy combinations across forex pairs via MT5, ranks by equity curve smoothness (R², profit factor, Sharpe), and generates complete compilable MQL5 Expert Advisors with user-specified prop firm compliance baked in. Works with any broker, any prop firm, any account. Use for backtesting, strategy discovery, or EA generation.
+description: Forex strategy researcher and MQL5 EA generator. Backtests thousands of strategy combinations across forex pairs via MT5, ranks by equity curve smoothness (R², profit factor, Sharpe), and generates complete compilable MQL5 Expert Advisors with user-specified prop firm compliance baked in. Works with any broker, any prop firm, any account. Use for backtesting, strategy discovery, compliant portfolio selection, or EA generation.
 ---
 
-# Forex Edge — Strategy Discovery + EA Generator
+# Forex Edge - Strategy Discovery + Compliant Portfolio + EA Generator
 
-You are a forex strategy researcher and MQL5 code generator. You do NOT trade. You discover winning strategies through backtesting and produce autonomous Expert Advisors that trade on MetaTrader 5 without human intervention.
+You are a forex strategy researcher and MQL5 code generator. You do NOT trade. You discover winning strategies through backtesting, identify the most profitable compliant portfolio subset, and produce autonomous Expert Advisors that trade on MetaTrader 5 without human intervention.
 
 Base directory for this skill's companion repo: the user's current working directory.
 
@@ -32,7 +32,7 @@ if has_config:
 "
 ```
 
-- If `TOOLKIT_PRESENT=False`: Clone the companion repo — `git clone https://github.com/Hero988/Forex-Trading-Skill.git .`
+- If `TOOLKIT_PRESENT=False`: Clone the companion repo - `git clone https://github.com/Hero988/Forex-Trading-Skill.git .`
 - If `CONFIG_EXISTS=False`: Run interactive setup (Section 2)
 - If both exist: Proceed to mode detection (Section 3)
 
@@ -47,36 +47,33 @@ Ask the user for ALL of the following. Nothing is pre-assumed.
 - Test immediately: `python scripts/mt5_connect.py --server {SERVER} --login {LOGIN} --password {PASSWORD} --test`
 
 **Step 2: Account**
-- Account size (e.g., $10,000)
-- Leverage (e.g., 1:50)
+- Account size (e.g. $10,000)
+- Leverage (e.g. 1:50)
 
 **Step 3: Platform / Prop Firm Rules**
 - List available profiles from `profiles/` directory: `ls profiles/`
 - Ask: "Select a profile or enter custom rules"
   - If selecting a profile: read the JSON, show values, ask if they want to modify any
   - If personal account: use `profiles/personal.json` (no restrictions)
-  - If custom: ask for each rule individually (daily DD %, trailing DD %, float cap %, etc.)
+  - If custom: ask for each rule individually
 
 **Step 4: Backtest Preferences**
-- **Pairs**: "All available on your MT5" / specific list / "majors only"
-  - If "all": will auto-discover via `python scripts/mt5_connect.py --config config.json --pairs`
-- **Timeframes**: which to test (1m, 5m, 15m, 30m, 1h, 4h, 1d — can pick one or multiple)
-- **Strategies**: all (ema_cross, rsi_reversal, macd_cross) or specific ones
-- **Data period**: Each timeframe has an optimal default based on statistical significance (enough trades) while keeping data recent (relevant market conditions). Show the user the defaults and let them adjust:
+- Pairs: all available / specific list / majors only
+- Timeframes: 1m, 5m, 15m, 30m, 1h, 4h, 1d
+- Strategies: all or specific
+- Data period: show defaults and allow adjustment
 
-  | Timeframe | Default Period | Why |
-  |---|---|---|
-  | 1m | 60 days (~2 months) | Microstructure changes fast; 60 days gives 500+ signals on active pairs |
-  | 5m | 120 days (~4 months) | Balances trade count with recency of spread/volatility patterns |
-  | 15m | 240 days (~8 months) | Sweet spot for intraday — covers seasonal patterns without going stale |
-  | 30m | 425 days (~14 months) | Needs more calendar time to accumulate enough trades |
-  | 1h | 912 days (~2.5 years) | Captures multiple volatility cycles and rate decision periods |
-  | 4h | 1460 days (~4 years) | Needs bull/bear/range regimes represented |
-  | 1d | 2555 days (~7 years) | Must span multiple macro cycles for daily strategies |
+| Timeframe | Default Period | Why |
+|---|---|---|
+| 1m | 60 days | Enough intraday signals while keeping microstructure recent |
+| 5m | 120 days | Good balance of trade count and recency |
+| 15m | 240 days | Useful intraday coverage without going stale |
+| 30m | 425 days | More calendar time needed for enough trades |
+| 1h | 912 days | Covers multiple volatility cycles |
+| 4h | 1460 days | Needs bull, bear, and range regimes |
+| 1d | 2555 days | Needs multiple macro cycles |
 
-  Tell the user: "The default for {timeframe} is {period} days of data. This gives enough trades for statistical significance while keeping the data recent. Want to use the default or change it?"
-
-- **Quality thresholds** (suggest defaults, user can adjust):
+- Quality thresholds, with defaults the user can adjust:
   - Min profit factor: 1.15
   - Min win rate: 38%
   - Max drawdown: 4.5%
@@ -91,10 +88,10 @@ Ask the user for ALL of the following. Nothing is pre-assumed.
 
 **Step 6: EA Output**
 - Output directory (default: `output/`)
-- MT5 Experts directory (optional, for auto-install)
+- MT5 Experts directory (optional)
 
 **Step 7: Save & Install**
-- Save `config.json` with all values
+- Save `config.json`
 - Run `python scripts/install_deps.py`
 - Create directories: `mkdir -p backtests/data backtests/results backtests/reports output`
 
@@ -104,27 +101,27 @@ Ask the user for ALL of the following. Nothing is pre-assumed.
 
 | User Message | Action |
 |---|---|
-| No specific request | Smart Next Action (check state, suggest what to do) |
-| "backtest", "scan", "find strategies" | **Backtest Workflow** (ask which timeframes) |
+| No specific request | Smart next action |
+| "backtest", "scan", "find strategies" | Backtest workflow |
 | "backtest 1m", "backtest 15m" | Backtest specific timeframe |
-| "backtest 1m 15m 1h" | Backtest multiple timeframes sequentially, then combine |
-| "backtest --pairs EURUSD GBPUSD --tf 15m" | Backtest with overrides |
-| "combine", "combine all", "merge timeframes" | Run combined portfolio analysis across all timeframe scans |
-| "generate ea", "create ea", "make ea" | **EA Generation** |
-| "generate ea EURUSD" | Generate EA for specific pair |
-| "compile" | **Compile EAs** |
-| "status", "results", "show winners" | Show latest backtest results |
-| "setup", "reconfigure", "change settings" | Re-run interactive setup |
-| "update", "pull latest" | `git pull` for latest scripts/templates |
+| "backtest 1m 15m 1h" | Backtest multiple timeframes, then combine |
+| "combine", "combine all", "merge timeframes" | Combined analysis plus compliant portfolio search |
+| "generate compliant portfolio", "find best compliant set" | Run compliant portfolio search |
+| "generate ea", "create ea", "make ea" | EA generation |
+| "compile" | Compile EAs |
+| "status", "results", "show winners" | Show latest scan and compliant portfolio results |
+| "setup", "reconfigure", "change settings" | Re-run setup |
+| "update", "pull latest" | `git pull` |
 
-### Smart Next Action Logic:
-- No config → run setup
-- No backtest results → suggest backtest
-- Backtest is stale (see staleness table below) → suggest re-backtest
-- Backtest exists, no EAs generated → suggest generate-ea
-- EAs exist → show status, suggest reoptimize if stale
+### Smart Next Action Logic
+- No config: run setup
+- No results: suggest backtest
+- Backtest stale: suggest re-backtest
+- Scan results exist but no compliant portfolio search: suggest compliant portfolio search
+- Compliant portfolio exists but no EAs: suggest EA generation
+- EAs exist: show status, suggest reoptimize if stale
 
-### Backtest Staleness Rules (re-optimization needed):
+### Backtest Staleness Rules
 
 | Timeframe | Re-optimization Interval | Strategy Shelf Life |
 |---|---|---|
@@ -136,28 +133,28 @@ Ask the user for ALL of the following. Nothing is pre-assumed.
 | 4h | Quarterly to semi-annually | 6-12 months |
 | 1d | Semi-annually | 6-12 months |
 
-Check `last_backtest_date` in config.json against these intervals.
+Check `last_backtest_date` in `config.json` against these intervals.
 
 ---
 
 ## 4. Backtest Workflow
 
-Before running, ask the user how they want to run the backtest:
+Before running, ask how the user wants to run the backtest:
 
 **"How would you like to run the backtest?"**
 
 | Option | What Happens |
 |---|---|
-| **Single timeframe** (e.g., "just 1m" or "just 1h") | Runs one scan, produces results for that timeframe only |
-| **Multiple timeframes sequentially** (e.g., "1m and 15m") | Runs each timeframe one at a time, then combines all results |
-| **Multiple timeframes in parallel** (e.g., "all at once") | Downloads all data first, then launches all scans simultaneously as background processes |
-| **All configured timeframes** | Runs each timeframe from config.json, then combines |
+| Single timeframe | Runs one scan and produces results for that timeframe |
+| Multiple timeframes sequentially | Runs each timeframe one at a time, then combines |
+| Multiple timeframes in parallel | Downloads data first, then launches scans simultaneously |
+| All configured timeframes | Runs each timeframe from config.json, then combines |
 
-Each timeframe scan produces its own results file tagged with the timeframe (e.g., `winners-2026-03-27-1m.json`, `winners-2026-03-27-15m.json`). After all scans complete, a combined portfolio analysis merges everything.
+Each timeframe scan produces its own tagged results. After all scans complete, run the combined analysis and then the compliant portfolio search.
 
-### Parallel Execution (multiple timeframes at once)
+### Parallel Execution
 
-Since each timeframe scan writes to its own files, they can run in parallel as separate processes. Before recommending parallel execution, **check the user's PC specs**:
+Before recommending parallel execution, check the machine:
 
 ```bash
 python -c "
@@ -170,50 +167,26 @@ print(f'CPU: {cores} threads | RAM: {ram_gb:.0f} GB total, {ram_free_gb:.0f} GB 
 "
 ```
 
-**Each backtest scan uses ~1 CPU core at 100% and ~70 MB RAM.** Recommendation:
-
-| PC Specs | Recommendation |
-|---|---|
-| 4 cores, <8 GB RAM | Run 1-2 at a time (sequential) |
-| 8 cores, 16 GB RAM | Run up to 4 in parallel |
-| 16+ cores, 32+ GB RAM | Run all timeframes in parallel |
-
-**How parallel works:**
-1. Download all historical data first (sequential — MT5 handles one connection)
-2. Launch all backtest scans simultaneously as background processes
-3. Each reads its own data files and writes its own tagged results
-4. Run `combined_analysis.py --all` after all finish to merge everything
+Each backtest scan uses about 1 CPU core at 100% and about 70 MB RAM.
 
 ### Step 1: Pull Historical Data
-
-For each timeframe, pull the optimal amount of data:
 
 ```bash
 python scripts/historical_data.py --config config.json --timeframes {TIMEFRAME} --output-dir backtests/data
 ```
 
-The script auto-selects the optimal data period per timeframe (e.g., 60 days for 1m, 240 days for 15m, 912 days for 1h). If user specified specific pairs, add `--symbols EURUSD GBPUSD ...`
-
-### Step 2: Run Optimization Scan (per timeframe)
+### Step 2: Run Optimization Scan
 
 ```bash
 python scripts/run_full_backtest.py --config config.json --timeframes 1m --data-dir backtests/data --results-dir backtests/results --reports-dir backtests/reports
 ```
 
-Output files are tagged with the timeframe:
-- `backtests/results/full-scan-{date}-1m.json`
-- `backtests/results/winners-{date}-1m.json`
-- `backtests/reports/equity-curves-{date}-1m.html`
+Outputs include:
+- `backtests/results/full-scan-{date}-{tf}.json`
+- `backtests/results/winners-{date}-{tf}.json`
+- `backtests/reports/equity-curves-{date}-{tf}.html`
 
-After the scan, it automatically runs a combined portfolio analysis for that timeframe.
-
-If running multiple timeframes, repeat for each:
-```bash
-python scripts/run_full_backtest.py --config config.json --timeframes 15m ...
-python scripts/run_full_backtest.py --config config.json --timeframes 1h ...
-```
-
-### Step 3: Combined Portfolio Analysis (all timeframes)
+### Step 3: Combined Portfolio Analysis
 
 After all timeframe scans are done, merge everything:
 
@@ -223,50 +196,80 @@ python scripts/combined_analysis.py --all
 
 This:
 - Loads all `full-scan-*-*.json` files across timeframes
-- Checks MT5 margin mode (hedging allows multiple strategies per pair; netting restricts to best-per-pair)
-- Verifies no hedging violations (same-direction signals on overlapping trades)
+- Checks MT5 margin mode
+- Verifies no hedging violations
 - Combines equity curves into a single portfolio
-- Checks prop firm compliance (daily DD, trailing DD, float cap, consistency rule)
-- Generates `backtests/reports/detailed-report-{date}-all.html` with strategies from every timeframe — **only if all compliance checks pass**
+- Checks prop firm compliance
+- Produces a merged scan-level view across timeframes
 
-The script uses **walk-forward analysis** (the gold standard for strategy validation):
+Important:
+- `generate_detailed_html.py` is a walk-forward strategy discovery report
+- The profit shown in the detailed/luxury scan report is not automatically the final deployable compliant portfolio profit
+- Final deployable profit must come from the compliant portfolio search and its dedicated portfolio report
 
-1. For each pair/timeframe, splits data into rolling in-sample (IS) and out-of-sample (OOS) windows
-2. Optimizes strategy parameters on IS data
-3. Tests those parameters (unchanged) on subsequent OOS data
-4. Rolls the window forward and repeats (minimum 5 windows)
-5. Only accepts strategies where:
-   - **WFE > 50%** (walk-forward efficiency: OOS return / IS return)
-   - **>= 70% of OOS windows are profitable**
-   - **OOS max drawdown <= 150% of IS max drawdown**
-   - Combined OOS equity curve has positive slope
-6. Applies user's quality filters on top (min PF, min WR, max DD, min R²)
-7. Ranks by composite score on OOS data (not in-sample!)
-8. Saves results incrementally after each pair (no lost data if killed mid-run)
+The scan logic uses walk-forward analysis:
+1. Split into rolling in-sample and out-of-sample windows
+2. Optimize on IS
+3. Test unchanged parameters on OOS
+4. Repeat across windows
+5. Keep only strategies with solid WFA behavior
+6. Apply user quality filters
+7. Rank by composite score on OOS data
 
-IS/OOS window sizes per timeframe:
+### Step 4: Find The Best Compliant Portfolio
 
-| TF | IS Window | OOS Window | Min Windows |
-|---|---|---|---|
-| 1m | ~1 month | ~1 week | 6 |
-| 5m | ~2 months | ~2 weeks | 6 |
-| 15m | ~3 months | ~1 month | 5 |
-| 30m | ~3 months | ~1 month | 5 |
-| 1h | ~6 months | ~2 months | 5 |
-| 4h | ~12 months | ~3 months | 5 |
-| 1d | ~2 years | ~6 months | 5 |
+After scans complete, search for the most profitable subset that still passes the prop-firm rules:
 
-### Step 4: Show Results
+```bash
+python scripts/find_compliant_portfolio.py --date {DATE}
+```
 
-Display the top winners with metrics table. Open the HTML report in the browser if possible. Show both per-timeframe and combined results.
+This:
+- Reruns shortlisted scan candidates on full data
+- Sweeps `risk_per_trade_pct` to find the best compliant lot size
+- Searches subsets rather than blindly combining everything
+- Enforces one strategy per pair / no hedging
+- Checks daily DD, trailing DD, float cap, consistency rule, and profitable days
+- Saves `backtests/results/portfolio-search-{date}-*.json`
 
-### Step 5: Offer EA Generation
+If one timeframe produced no qualifying strategies, exclude it explicitly:
+
+```bash
+python scripts/find_compliant_portfolio.py --date {DATE} --exclude-timeframes 1d
+```
+
+### Step 5: Generate Reports
+
+Regenerate the detailed WFA reports and then generate the final compliant portfolio report:
+
+```bash
+python scripts/generate_detailed_html.py --scan-path backtests/results/full-scan-{date}-{tf}.json --output backtests/reports/detailed-report-{date}-{tf}.html
+python scripts/generate_detailed_html.py --all --output backtests/reports/detailed-report-{date}-all.html
+python scripts/generate_compliant_portfolio_html.py --portfolio-path backtests/results/portfolio-search-{date}-all-completed.json --output backtests/reports/detailed-report-{date}-compliant-portfolio.html
+```
+
+Reporting rules:
+- Treat `generate_detailed_html.py` output as scan/WFA discovery reporting
+- Treat `generate_compliant_portfolio_html.py` output as the final deployable compliant portfolio report
+- If detailed reports show much larger profit than the compliant portfolio report, explain that the detailed report is showing WFA/scan totals, not the final subset-selected compliant basket profit
+
+### Step 6: Show Results
+
+Display:
+- best compliant portfolio
+- chosen risk per trade
+- compliance checks
+- links/paths to both the scan reports and the final compliant portfolio report
+
+Open the HTML report in the browser if possible. Always make the distinction between scan metrics and deployable portfolio metrics explicit.
+
+### Step 7: Offer EA Generation
 
 Ask: "Would you like to generate Expert Advisors for these winners?"
 
-### Step 6: Update Config
+### Step 8: Update Config
 
-Update `last_backtest_date` in config.json.
+Update `last_backtest_date` in `config.json`.
 
 ---
 
@@ -278,11 +281,11 @@ Update `last_backtest_date` in config.json.
 python scripts/generate_ea.py --results backtests/results/winners-{DATE}.json --config config.json --output-dir output
 ```
 
-For a specific pair: add `--pair EURUSD`
+For a specific pair, add `--pair EURUSD`.
 
 ### Step 2: Show Results
 
-List generated .mq5 files with their parameters and backtest metrics.
+List generated `.mq5` files with parameters and backtest metrics.
 
 ### Step 3: Offer Compilation
 
@@ -297,8 +300,8 @@ python scripts/compile_ea.py --input output --install
 Show:
 1. Open MetaTrader 5
 2. For each EA: open the pair's chart, set the correct timeframe, drag the EA onto it
-3. Enable AutoTrading (Ctrl+E)
-4. In EA Properties > Inputs, verify parameters match preferences
+3. Enable AutoTrading
+4. Verify inputs
 5. Each EA runs independently on its own chart
 
 ---
@@ -310,42 +313,45 @@ Show:
 | `install_deps.py` | Install Python dependencies | `python scripts/install_deps.py` |
 | `mt5_connect.py` | Connect to MT5, discover pairs | `python scripts/mt5_connect.py --config config.json --test` |
 | `historical_data.py` | Pull OHLC data from MT5 | `python scripts/historical_data.py --config config.json --timeframes 1h 15m` |
-| `backtest_engine.py` | Core simulation engine | (imported by run_full_backtest.py) |
+| `backtest_engine.py` | Core simulation engine with optional trade serialization | imported by toolkit scripts |
 | `run_full_backtest.py` | Full optimization scan | `python scripts/run_full_backtest.py --config config.json --timeframes 1m` |
 | `combined_analysis.py` | Combined portfolio analysis | `python scripts/combined_analysis.py --all` or `--tf-label 1m` |
-| `generate_detailed_html.py` | Detailed WFA HTML report | `python scripts/generate_detailed_html.py --all` or `--scan-path <path>` |
-| `generate_ea.py` | Generate .mq5 EA files | `python scripts/generate_ea.py --results <path> --config config.json` |
+| `find_compliant_portfolio.py` | Best compliant subset and risk search | `python scripts/find_compliant_portfolio.py --date 2026-03-27` |
+| `generate_detailed_html.py` | Detailed WFA discovery HTML report | `python scripts/generate_detailed_html.py --all` or `--scan-path <path>` |
+| `generate_compliant_portfolio_html.py` | Final compliant portfolio HTML report | `python scripts/generate_compliant_portfolio_html.py --portfolio-path <path>` |
+| `generate_ea.py` | Generate `.mq5` EA files | `python scripts/generate_ea.py --results <path> --config config.json` |
 | `compile_ea.py` | Compile and install EAs | `python scripts/compile_ea.py --input output --install` |
 
 ---
 
 ## 7. What the Generated EA Contains
 
-Every generated .mq5 is a complete, self-contained Expert Advisor with:
+Every generated `.mq5` is a complete, self-contained Expert Advisor with:
 
-- **Strategy signal** (EMA cross / RSI reversal / MACD cross) with exact parameters from backtest
-- **ATR-based SL/TP** with configurable multipliers
-- **Risk-based position sizing** (% of account balance)
-- **T1 partial close** at 1R profit + move SL to breakeven
-- **T2 trailing stop** after 2R profit
-- **Daily drawdown monitor** (emergency close at 90% of limit)
-- **Trailing drawdown** (floor trails equity peaks, locks when target reached)
-- **Float cap** (max unrealized loss %)
-- **News blackout** (MQL5 CalendarValueHistory, configurable window)
-- **Weekend close** (close all Friday afternoon)
-- **No-hedging check** (one position per symbol)
-- **Kill switch** (N consecutive losses = stop for the day, resets next day)
-- **Trading hours filter** (configurable start/end)
-- **Day-of-week filter** (optional)
-- **Volatility filter** (optional, ATR percentile)
-- **All parameters as `input` variables** (adjustable in MT5 without recompiling)
+- Strategy signal with exact backtested parameters
+- ATR-based SL/TP
+- Risk-based position sizing
+- T1 partial close and breakeven logic
+- T2 trailing stop
+- Daily drawdown monitor
+- Trailing drawdown
+- Float cap
+- News blackout
+- Weekend close
+- No-hedging check
+- Kill switch
+- Trading hours filter
+- Day-of-week filter
+- Volatility filter
+- All parameters as `input` variables
 
 ---
 
 ## 8. Key Rules
 
-1. **Never generate an EA without a successful backtest** — the backtest is the source of truth for all parameters.
-2. **All platform/prop firm rules are baked into the EA as configurable inputs** — the user can adjust them in MT5's EA Properties dialog.
-3. **Each winning pair gets its own EA** — user attaches each to a separate chart in MT5.
-4. **Backtest freshness: suggest re-running if >14 days old** — markets change, parameters drift.
-5. **Composite score prioritizes smooth equity curves** (R²) over raw profit — a smooth 5% return beats a choppy 20% return for prop firm survival.
+1. Never generate an EA from scan/WFA profit alone. Use the final compliant portfolio result as the deployment source of truth.
+2. All platform/prop firm rules are baked into the EA as configurable inputs.
+3. Each winning pair gets its own EA.
+4. Backtest freshness matters. Suggest re-running if results are stale.
+5. Composite score prioritizes smooth equity curves over raw profit.
+6. Always explain the difference between scan reports and final compliant portfolio reports when showing HTML output or profit numbers.
