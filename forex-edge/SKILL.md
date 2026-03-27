@@ -305,6 +305,7 @@ For single-portfolio mode:
 - explain that one EA can be attached to any one chart
 - explain that the EA monitors multiple symbols internally
 - remind the user that the relevant symbols should remain visible in Market Watch
+- explain that the EA now renders an on-chart dashboard showing portfolio status, risk/compliance state, per-strategy status, and recent events
 
 ### Step 3: Offer Compilation
 

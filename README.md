@@ -55,6 +55,7 @@ The default deployment path is:
 4. Generate a single portfolio EA for that winning basket
 
 This gives you one EA on one chart managing the approved basket internally, instead of one EA per pair unless you explicitly want the legacy per-pair setup.
+The single portfolio EA also renders an on-chart dashboard so the user can see portfolio state, compliance state, per-strategy status, and recent events directly in MT5.
 
 ## Requirements
 
