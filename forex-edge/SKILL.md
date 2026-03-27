@@ -121,6 +121,81 @@ Ask the user for ALL of the following. Nothing is pre-assumed.
 - Compliant portfolio exists but no EAs: suggest EA generation
 - EAs exist: show status, suggest reoptimize if stale
 
+### Mandatory Freshness Check Before Any Backtest
+
+Before starting any new backtest or scan, always check the latest completed artifacts first and derive the refresh date from the current compliant portfolio when possible:
+
+```bash
+python -c "
+import glob, json, os
+from datetime import date, datetime, timedelta
+cwd = os.getcwd()
+cfg_path = os.path.join(cwd, 'config.json')
+last_cfg = ''
+if os.path.isfile(cfg_path):
+    with open(cfg_path, 'r', encoding='utf-8') as f:
+        last_cfg = json.load(f).get('last_backtest_date', '')
+scan_files = sorted(glob.glob(os.path.join(cwd, 'backtests', 'results', 'full-scan-*-*.json')))
+portfolio_files = sorted(glob.glob(os.path.join(cwd, 'backtests', 'results', 'portfolio-search-*.json')))
+report_files = sorted(glob.glob(os.path.join(cwd, 'backtests', 'reports', 'detailed-report-*-compliant-portfolio.html')))
+tf_days = {'1m': 7, '5m': 14, '15m': 31, '30m': 31, '1h': 90, '4h': 90, '1d': 180}
+
+def parse_date(s):
+    return datetime.strptime(s, '%Y-%m-%d').date()
+
+def first_saturday_on_or_after(d):
+    while d.weekday() != 5:
+        d += timedelta(days=1)
+    return d
+
+portfolio_date = ''
+portfolio_tfs = []
+if portfolio_files:
+    latest_portfolio = portfolio_files[-1]
+    base = os.path.basename(latest_portfolio)
+    parts = base.split('-')
+    if len(parts) >= 4:
+        portfolio_date = '-'.join(parts[2:5]).replace('.json', '')
+    with open(latest_portfolio, 'r', encoding='utf-8') as f:
+        pobj = json.load(f)
+    portfolio_tfs = sorted({item.get('timeframe') for item in pobj.get('portfolio', []) if item.get('timeframe')})
+
+scan_tfs = sorted({os.path.basename(p).replace('.json', '').split('-')[-1] for p in scan_files})
+effective_tfs = portfolio_tfs or scan_tfs
+base_date = portfolio_date or last_cfg
+next_due = ''
+if base_date and effective_tfs:
+    due_dates = []
+    for tf in effective_tfs:
+        days = tf_days.get(tf)
+        if days:
+            due_dates.append(parse_date(base_date) + timedelta(days=days))
+    if due_dates:
+        next_due = first_saturday_on_or_after(min(due_dates)).isoformat()
+
+print(f'CONFIG_LAST_BACKTEST={last_cfg}')
+print(f'LATEST_SCAN={os.path.basename(scan_files[-1]) if scan_files else \"\"}')
+print(f'LATEST_PORTFOLIO={os.path.basename(portfolio_files[-1]) if portfolio_files else \"\"}')
+print(f'LATEST_COMPLIANT_REPORT={os.path.basename(report_files[-1]) if report_files else \"\"}')
+print(f'ACTIVE_PORTFOLIO_TIMEFRAMES={\",\".join(effective_tfs)}')
+print(f'NEXT_REFRESH_DATE={next_due}')
+"
+```
+
+Rules:
+- Use the newest matching `full-scan-{date}-{tf}.json` files as the real evidence of what has already been scanned.
+- Use `config.json:last_backtest_date` as a fallback or summary field, not the only freshness signal.
+- Prefer the timeframes in the newest compliant portfolio JSON over the static configured timeframes when deciding refresh timing.
+- If there is no compliant portfolio yet, fall back to the newest scan timeframes and the static staleness rules below.
+- If the requested portfolio is still fresh by the computed refresh date, do not launch a new scan automatically.
+- First tell the user:
+  - the latest completed backtest date you found
+  - the active portfolio timeframes being used for refresh scheduling
+  - whether it is still fresh or stale
+  - the next recommended rerun date in absolute date form
+- If `today >= NEXT_REFRESH_DATE`, the refresh is due and you may proceed with the re-backtest unless the user asks not to.
+- If `today < NEXT_REFRESH_DATE`, do not re-backtest unless the user explicitly says to rerun anyway.
+
 ### Backtest Staleness Rules
 
 | Timeframe | Re-optimization Interval | Strategy Shelf Life |
@@ -134,6 +209,37 @@ Ask the user for ALL of the following. Nothing is pre-assumed.
 | 1d | Semi-annually | 6-12 months |
 
 Check `last_backtest_date` in `config.json` against these intervals.
+
+### Preferred Re-Backtest Window
+
+Do not treat any random time of day as equally good. Prefer rerunning after the trading week has fully closed so the latest week is complete and the market is shut while scans run.
+
+Dynamic scheduling logic:
+- identify the latest compliant portfolio JSON first
+- extract the currently active portfolio timeframes from its `portfolio` entries
+- compute a due date for each active timeframe using these base intervals:
+  - `1m`: 7 days
+  - `5m`: 14 days
+  - `15m`: 31 days
+  - `30m`: 31 days
+  - `1h`: 90 days
+  - `4h`: 90 days
+  - `1d`: 180 days
+- the portfolio refresh due date is the earliest due date across the active timeframes
+- then round that due date forward to the first Saturday on or after it
+- use that Saturday-to-Sunday weekend window as the preferred refresh window
+
+Refresh execution rules:
+- if the current date is before the computed portfolio refresh date, do not rerun automatically
+- if the current date is on or after the computed portfolio refresh date, rerun the portfolio refresh
+- rerun the active portfolio timeframes first, not every historical timeframe by default
+- after the scans finish, rerun compliant portfolio search and regenerate the final compliant portfolio report before discussing EA changes
+
+When the user asks "when should I backtest next?":
+- Compute the exact date from the latest completed compliant portfolio run when available.
+- Give the answer in absolute dates.
+- Prefer the Friday-after-close to Sunday window for the rerun.
+- State which active portfolio timeframe made the refresh due date the earliest.
 
 ---
 
