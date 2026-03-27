@@ -265,7 +265,11 @@ Open the HTML report in the browser if possible. Always make the distinction bet
 
 ### Step 7: Offer EA Generation
 
-Ask: "Would you like to generate Expert Advisors for these winners?"
+Ask: "Would you like to generate the single portfolio EA or separate per-pair EAs?"
+
+Default:
+- Prefer the single portfolio EA when the user wants one chart, one file, and the already-selected compliant basket
+- Only generate separate per-pair EAs if the user explicitly wants independent chart-by-chart deployment
 
 ### Step 8: Update Config
 
@@ -275,7 +279,17 @@ Update `last_backtest_date` in `config.json`.
 
 ## 5. EA Generation Workflow
 
-### Step 1: Load Winners
+### Step 1: Choose EA Mode
+
+Default mode is a single compliant portfolio EA:
+
+```bash
+python scripts/generate_ea.py --results backtests/results/portfolio-search-{DATE}-all-completed.json --config config.json --output-dir output/compliant-{DATE}-single --single-portfolio
+```
+
+This generates one multi-symbol, timer-driven EA that internally manages the selected compliant basket.
+
+Optional legacy mode for separate per-pair EAs:
 
 ```bash
 python scripts/generate_ea.py --results backtests/results/winners-{DATE}.json --config config.json --output-dir output
@@ -286,6 +300,11 @@ For a specific pair, add `--pair EURUSD`.
 ### Step 2: Show Results
 
 List generated `.mq5` files with parameters and backtest metrics.
+
+For single-portfolio mode:
+- explain that one EA can be attached to any one chart
+- explain that the EA monitors multiple symbols internally
+- remind the user that the relevant symbols should remain visible in Market Watch
 
 ### Step 3: Offer Compilation
 
@@ -299,10 +318,11 @@ python scripts/compile_ea.py --input output --install
 
 Show:
 1. Open MetaTrader 5
-2. For each EA: open the pair's chart, set the correct timeframe, drag the EA onto it
-3. Enable AutoTrading
-4. Verify inputs
-5. Each EA runs independently on its own chart
+2. For single-portfolio EA mode: open any one chart and drag the portfolio EA onto it
+3. For separate-EA mode: open the matching chart for each pair/timeframe and drag each EA onto its chart
+4. Enable AutoTrading
+5. Verify inputs
+6. For single-portfolio mode, keep the required symbols visible in Market Watch
 
 ---
 
@@ -319,7 +339,7 @@ Show:
 | `find_compliant_portfolio.py` | Best compliant subset and risk search | `python scripts/find_compliant_portfolio.py --date 2026-03-27` |
 | `generate_detailed_html.py` | Detailed WFA discovery HTML report | `python scripts/generate_detailed_html.py --all` or `--scan-path <path>` |
 | `generate_compliant_portfolio_html.py` | Final compliant portfolio HTML report | `python scripts/generate_compliant_portfolio_html.py --portfolio-path <path>` |
-| `generate_ea.py` | Generate `.mq5` EA files | `python scripts/generate_ea.py --results <path> --config config.json` |
+| `generate_ea.py` | Generate `.mq5` EA files, including single portfolio mode | `python scripts/generate_ea.py --results <path> --config config.json --single-portfolio` |
 | `compile_ea.py` | Compile and install EAs | `python scripts/compile_ea.py --input output --install` |
 
 ---
@@ -351,7 +371,7 @@ Every generated `.mq5` is a complete, self-contained Expert Advisor with:
 
 1. Never generate an EA from scan/WFA profit alone. Use the final compliant portfolio result as the deployment source of truth.
 2. All platform/prop firm rules are baked into the EA as configurable inputs.
-3. Each winning pair gets its own EA.
+3. Prefer a single multi-symbol portfolio EA for compliant basket deployment unless the user explicitly wants separate per-pair EAs.
 4. Backtest freshness matters. Suggest re-running if results are stale.
 5. Composite score prioritizes smooth equity curves over raw profit.
 6. Always explain the difference between scan reports and final compliant portfolio reports when showing HTML output or profit numbers.

@@ -41,8 +41,20 @@ On first run, the skill will:
 
 1. **Backtests** thousands of strategy combinations (EMA cross, RSI reversal, MACD cross) across all available forex pairs on your MT5 account
 2. **Ranks** results by equity curve smoothness using a composite score (R² × 50 + PF × 20 + WR × 0.5 + Sharpe × 5 + Monthly Consistency × 0.3 - Max DD × 10)
-3. **Generates** complete, compilable MQL5 Expert Advisor `.mq5` files from winning strategies
-4. **Bakes in** your prop firm rules (daily DD, trailing DD, float cap, news filter, weekend close, no hedging) as configurable EA input parameters
+3. **Searches** for the most profitable compliant portfolio subset and risk level from the scan candidates
+4. **Generates** scan/WFA reports plus a separate final compliant portfolio report
+5. **Generates** complete, compilable MQL5 Expert Advisor `.mq5` files from winning strategies, including a single multi-symbol portfolio EA mode
+6. **Bakes in** your prop firm rules (daily DD, trailing DD, float cap, news filter, weekend close, no hedging) as configurable EA input parameters
+
+## Recommended Deployment Mode
+
+The default deployment path is:
+1. Run the scans
+2. Run the compliant portfolio search
+3. Generate the final compliant portfolio report
+4. Generate a single portfolio EA for that winning basket
+
+This gives you one EA on one chart managing the approved basket internally, instead of one EA per pair unless you explicitly want the legacy per-pair setup.
 
 ## Requirements
 
